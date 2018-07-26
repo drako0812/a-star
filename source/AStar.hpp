@@ -15,7 +15,6 @@ namespace AStar
     struct Vec2i
     {
         int x, y;
-
         bool operator == (const Vec2i& coordinates_);
     };
 
@@ -39,10 +38,12 @@ namespace AStar
     {
         bool detectCollision(Vec2i coordinates_);
         Node* findNodeOnList(NodeSet& nodes_, Vec2i coordinates_);
-        void releaseNodes(NodeSet& nodes_);
+        Node* newNode(Vec2i coord_, Node *parent_ = nullptr);
+        void deleteNode(Node* node);
 
     public:
         Generator();
+        ~Generator();
         void setWorldSize(Vec2i worldSize_);
         void setDiagonalMovement(bool enable_);
         void setHeuristic(HeuristicFunction heuristic_);
@@ -56,6 +57,7 @@ namespace AStar
         CoordinateList direction, walls;
         Vec2i worldSize;
         uint directions;
+        std::vector<Node*> memoryPool;
     };
 
     class Heuristic
