@@ -2,6 +2,12 @@
 #include <algorithm>
 #include <cstring>
 #include <iostream>
+#include <cinttypes>
+#include <vector>
+#include <sstream>
+#include <fstream>
+#include <iostream>
+#include <string.h>
 
 using namespace std::placeholders;
 
@@ -26,9 +32,10 @@ Node::Node(Vec2i coordinates_, NodePtr parent_)
 }
 
 
-Generator::Generator()
+Generator::Generator():
+    _open_set( CompareScore() )
 {
-    _allow_5x5_search = true;
+    _allow_5x5_search = false;
     setHeuristic(&Heuristic::manhattan);
     _directions = {
         { 0, 1 }, { 1, 0 }, { 0, -1 }, { -1, 0 },
@@ -90,7 +97,10 @@ void Generator::setHeuristic(HeuristicFunction heuristic_)
 void Generator::clean()
 {
     _memory_storage.clear();
-    _open_set.clear();
+    while( !_open_set.empty() )
+    {
+        _open_set.pop();
+    }
     _closed_set.clear();
 
     _open_set_2Dmap.clear();
@@ -104,8 +114,8 @@ NodePtr Generator::findMinScoreInOpenSet()
 {
     if( _open_set.empty() ) return -1;
 
-    NodePtr current = ( _open_set.begin()->second );
-    _open_set.erase( _open_set.begin() );
+    NodePtr current = _open_set.top().second;
+    _open_set.pop();
     return current;
 }
 
@@ -117,8 +127,8 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
     { return static_cast<size_t>(_world_width*pos.y + pos.x); };
 
     NodePtr current_ptr = -1;
-    _open_set.insert( {0, newNode(source_,-1) } );
-    _open_set_2Dmap[ toIndex(source_) ] = _open_set.begin()->second;
+    _open_set.push( {0, newNode(source_,-1) } );
+    _open_set_2Dmap[ toIndex(source_) ] = _open_set.top().second;
 
     bool solution_found = false;
 
@@ -172,7 +182,7 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
                 auto successor = getNode(successor_ptr);
                 successor->G = totalCost;
                 successor->H = _heuristic(successor->coordinates(), target_);
-                _open_set.insert( { successor->getScore(), successor_ptr } );
+                _open_set.push( { successor->getScore(), successor_ptr } );
                 _open_set_2Dmap[ newIndex ] = successor_ptr;
             }
             else if (totalCost < getNode(successor_ptr)->G) {
@@ -184,7 +194,8 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
     }
 
     CoordinateList path;
-    if( solution_found ){
+   // if( solution_found )
+    {
         while (current_ptr != -1) {
             path.push_back( getNode(current_ptr)->coordinates());
             current_ptr = getNode(current_ptr)->parent;
@@ -199,6 +210,54 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
     }
 
     return path;
+}
+
+void Generator::exportPPM(const char *filename, CoordinateList* path)
+{
+    std::ofstream outfile(filename, std::ios_base::out | std::ios_base::binary);
+
+    char header[100];
+    sprintf(header, "P6\n# Done by Davide\n%d %d\n255\n", _world_width, _world_height );
+    outfile.write(header, strlen(header));
+
+    std::vector<uint8_t> image( _world_width * _world_height * 3);
+
+    int line_size = _world_width * 3;
+
+    auto toIndex = [line_size](int x, int y) { return y*line_size + (x*3); };
+
+    for (int y=0; y<_world_height; y++)
+    {
+        for (int x=0; x<_world_width; x++)
+        {
+            if( worldGrid({x,y}) == OBSTACLE )
+            {
+                uint8_t color[] = {0,0,0};
+                mempcpy( &image[ toIndex(x,y) ], color, 3 );
+            }
+            else if( closedGrid( {x,y}) )
+            {
+                uint8_t color[] = {255,180,180};
+                mempcpy( &image[ toIndex(x,y) ], color, 3 );
+            }
+            else{
+                uint8_t color[] = {255,255,255};
+                mempcpy( &image[ toIndex(x,y) ], color, 3 );
+            }
+        }
+    }
+
+    if( path )
+    {
+        for (const auto& point: *path)
+        {
+            uint8_t color[] = {50,50,250};
+            mempcpy( &image[ toIndex(point.x, point.y) ], color, 3 );
+        }
+    }
+
+    outfile.write( reinterpret_cast<char*>(image.data()), image.size() );
+    outfile.close();
 }
 
 NodePtr Generator::findNodeOnList(NodeSet& nodes, Vec2i coordinates)

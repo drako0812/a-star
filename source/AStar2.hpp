@@ -11,7 +11,7 @@
 #include <set>
 #include <map>
 #include <unordered_map>
-#include <list>
+#include <queue>
 
 namespace AStar2
 {
@@ -26,6 +26,16 @@ namespace AStar2
     using CoordinateList = std::vector<Vec2i>;
 
     typedef int32_t NodePtr;
+    typedef std::pair<uint,NodePtr> ScoreNodePair;
+
+    struct CompareScore
+    {
+      bool operator() (const ScoreNodePair& a,
+                       const ScoreNodePair& b)
+        {
+          return a.first > b.first;
+        }
+    };
 
     struct Node
     {
@@ -87,6 +97,8 @@ namespace AStar2
             _closed_grid[coord.y*_world_width + coord.x] = value;
         }
 
+        void exportPPM(const char* filename, CoordinateList* path);
+
         enum{
           OBSTACLE = 0,
           EMPTY    = 255
@@ -103,7 +115,9 @@ namespace AStar2
         std::vector<uint> _direction_cost;
         std::vector<Node> _memory_storage;
         std::vector<NodePtr> _closed_set;
-        std::multimap<uint, NodePtr> _open_set;
+
+       // std::multimap<uint, NodePtr> _open_set;
+        std::priority_queue<ScoreNodePair, std::vector<ScoreNodePair>, CompareScore> _open_set;
 
         std::vector<NodePtr> _open_set_2Dmap;
         void  clean();
