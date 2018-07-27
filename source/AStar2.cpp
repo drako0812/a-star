@@ -45,11 +45,11 @@ Generator::Generator()
         10, 10, 10, 10,
         14, 14, 14, 14,
 
-        28, 24, 20, 24, 28,
-        24,             24,
+        28, 22, 20, 22, 28,
+        22,             22,
         20,             20,
-        24,             20,
-        28, 24, 20, 24, 28
+        22,             22,
+        28, 22, 20, 22, 28
     };
 
     _memory_storage.reserve(1000);
@@ -97,7 +97,7 @@ void Generator::clean()
     _open_set_2Dmap.resize( _world_width*_world_height, -1 );
 
     _closed_grid.clear();
-    _closed_grid.resize( _world_width*_world_height, OPEN );
+    _closed_grid.resize( _world_width*_world_height, false );
 }
 
 NodePtr Generator::findMinScoreInOpenSet()
@@ -135,7 +135,7 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
             break;
         }
 
-        closedGrid( coordinates ) = CLOSED;
+        setClosedGrid( coordinates, true );
 
         bool can_do_jump_16 = _allow_5x5_search;
         for (int i=0; i<8 && can_do_jump_16; i++)
@@ -147,7 +147,7 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
         uint end_i   = 8;
         if( can_do_jump_16 )
         {
-        //    start_i = 8;
+            start_i = 8;
             end_i = 8 + 16;
         }
 
@@ -157,7 +157,7 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
             Vec2i newCoordinates(coordinates + _directions[i]);
 
             if (detectCollision(newCoordinates) ||
-                closedGrid( newCoordinates ) == CLOSED ) {
+                closedGrid( newCoordinates ) ) {
                 continue;
             }
             double pixel_color =  worldGrid( newCoordinates );

@@ -77,23 +77,19 @@ namespace AStar2
             return _world_grid[coordinates_.y*_world_width + coordinates_.x];
         }
 
-        const uint8_t& closedGrid(Vec2i coordinates_) const
+        bool closedGrid(Vec2i coord) const
         {
-            return _closed_grid[coordinates_.y*_world_width + coordinates_.x];
+            return _closed_grid[coord.y*_world_width + coord.x];
         }
 
-        uint8_t& closedGrid(Vec2i coordinates_)
+        void setClosedGrid(Vec2i coord, bool value)
         {
-            return _closed_grid[coordinates_.y*_world_width + coordinates_.x];
+            _closed_grid[coord.y*_world_width + coord.x] = value;
         }
 
         enum{
           OBSTACLE = 0,
           EMPTY    = 255
-        };
-        enum{
-            CLOSED = 1,
-            OPEN = 0
         };
     private:
 
@@ -103,7 +99,7 @@ namespace AStar2
         int _world_height;
         bool _allow_5x5_search;
         std::vector<uint8_t> _world_grid;
-        std::vector<uint8_t> _closed_grid;
+        std::vector<bool> _closed_grid;
         std::vector<uint> _direction_cost;
         std::vector<Node> _memory_storage;
         std::vector<NodePtr> _closed_set;
