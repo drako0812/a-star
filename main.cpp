@@ -5,9 +5,9 @@
 #include "source/AStar.hpp"
 #include "source/AStar2.hpp"
 
-const char filename[] = "/home/davide.faconti/Pictures/maze_250.pgm";
+const char filename[] = "/home/davide.faconti/Pictures/maze_100_smooth.pgm";
 
-static void BM_AStar(benchmark::State& state)
+static void BM_AStar_Otro_Tio(benchmark::State& state)
 {
   AStar::Generator generator;
   Image image;
@@ -31,7 +31,7 @@ static void BM_AStar(benchmark::State& state)
   {
       result = generator.findPath(
       { image.width/2, 0 },
-      { image.width/2, image.height/2 } );
+      { image.width/2, image.height-1 } );
   }
 
   for(auto& point: result)
@@ -43,7 +43,7 @@ static void BM_AStar(benchmark::State& state)
 
 }
 
-static void BM_AStar2(benchmark::State& state)
+static void BM_AStar_Davide(benchmark::State& state)
 {
   AStar2::Generator generator;
   Image image;
@@ -56,7 +56,7 @@ static void BM_AStar2(benchmark::State& state)
   {
       result = generator.findPath(
       { image.width/2, 0 },
-      { image.width/2, image.height/2 } );
+      { image.width/2, image.height-1 } );
   }
 
   for(auto& point: result)
@@ -67,10 +67,10 @@ static void BM_AStar2(benchmark::State& state)
   WriteImageToPGM("/home/davide.faconti/Pictures/map_out2.pgm", image);
 
 }
+//BENCHMARK(BM_AStar_Otro_Tio);
 
-BENCHMARK(BM_AStar2);
+BENCHMARK(BM_AStar_Davide);
 
-BENCHMARK(BM_AStar);
 
 
 

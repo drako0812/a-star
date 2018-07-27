@@ -20,7 +20,8 @@ Vec2i operator + (const Vec2i& left_, const Vec2i& right_)
 Node::Node(Vec2i coordinates_, NodePtr parent_)
 {
     parent = parent_;
-    coordinates = coordinates_;
+    coord_x = coordinates_.x;
+    coord_y = coordinates_.y;
     G = H = 0;
 }
 
@@ -66,10 +67,18 @@ void Generator::setWorldData(int width, int height, const uint8_t *data)
     _world_grid.resize(width*height);
     for (size_t i=0; i<width*height; i++ )
     {
-        _world_grid[i] = data[i] < 100 ? OBSTACLE : EMPTY;
+        if(  data[i] < 20 )
+        {
+            _world_grid[i] = OBSTACLE;
+        }
+        if(  data[i] > 235 )
+        {
+            _world_grid[i] = EMPTY;
+        }
+        else{
+            _world_grid[i] = data[i];
+        }
     }
-
-    _open_set_2Dmap.resize(width*height, -1);
 }
 
 void Generator::setHeuristic(HeuristicFunction heuristic_)
@@ -80,15 +89,15 @@ void Generator::setHeuristic(HeuristicFunction heuristic_)
 
 void Generator::clean()
 {
-    for(auto& val: _world_grid)
-    {
-        val = ( val == CLOSED ) ? EMPTY : val;
-    }
     _memory_storage.clear();
     _open_set.clear();
     _closed_set.clear();
+
     _open_set_2Dmap.clear();
     _open_set_2Dmap.resize( _world_width*_world_height, -1 );
+
+    _closed_grid.clear();
+    _closed_grid.resize( _world_width*_world_height, OPEN );
 }
 
 NodePtr Generator::findMinScoreInOpenSet()
@@ -116,7 +125,7 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
     while (! _open_set.empty() )
     {
         current_ptr = findMinScoreInOpenSet();
-        Vec2i coordinates = getNode(current_ptr)->coordinates;
+        Vec2i coordinates = getNode(current_ptr)->coordinates();
 
         _open_set_2Dmap[ toIndex( coordinates ) ] = -1;
         _closed_set.push_back( current_ptr );
@@ -126,7 +135,7 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
             break;
         }
 
-        grid( coordinates ) = CLOSED;
+        closedGrid( coordinates ) = CLOSED;
 
         bool can_do_jump_16 = _allow_5x5_search;
         for (int i=0; i<8 && can_do_jump_16; i++)
@@ -138,24 +147,22 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
         uint end_i   = 8;
         if( can_do_jump_16 )
         {
-            start_i = 8;
+        //    start_i = 8;
             end_i = 8 + 16;
-            for (int i=0; i<8 && can_do_jump_16; i++)
-            {
-               // grid( coordinates + _directions[i] ) = CLOSED;
-            }
         }
 
         for (uint i = start_i; i < end_i; ++i)
         {
             Node* curr_node = getNode(current_ptr);
             Vec2i newCoordinates(coordinates + _directions[i]);
+
             if (detectCollision(newCoordinates) ||
-                grid( newCoordinates ) == CLOSED ) {
+                closedGrid( newCoordinates ) == CLOSED ) {
                 continue;
             }
-
-            uint totalCost = curr_node->G + _direction_cost[i];
+            double pixel_color =  worldGrid( newCoordinates );
+            double factor = 1.0 + static_cast<double>((EMPTY - pixel_color) / 20) / 2.0;
+            uint totalCost = curr_node->G + _direction_cost[i] * factor;
 
             size_t newIndex = toIndex(newCoordinates);
             NodePtr successor_ptr = _open_set_2Dmap[ newIndex ];
@@ -164,7 +171,7 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
                 successor_ptr = newNode(newCoordinates, current_ptr );
                 auto successor = getNode(successor_ptr);
                 successor->G = totalCost;
-                successor->H = _heuristic(successor->coordinates, target_);
+                successor->H = _heuristic(successor->coordinates(), target_);
                 _open_set.insert( { successor->getScore(), successor_ptr } );
                 _open_set_2Dmap[ newIndex ] = successor_ptr;
             }
@@ -179,7 +186,7 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
     CoordinateList path;
     if( solution_found ){
         while (current_ptr != -1) {
-            path.push_back( getNode(current_ptr)->coordinates);
+            path.push_back( getNode(current_ptr)->coordinates());
             current_ptr = getNode(current_ptr)->parent;
         }
     }
@@ -197,7 +204,7 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
 NodePtr Generator::findNodeOnList(NodeSet& nodes, Vec2i coordinates)
 {
     for (auto node : nodes) {
-        if ( getNode(node)->coordinates == coordinates) {
+        if ( getNode(node)->coordinates() == coordinates) {
             return node;
         }
     }
@@ -214,7 +221,7 @@ bool Generator::detectCollision(Vec2i coordinates)
 {
     if (coordinates.x < 0 || coordinates.x >= _world_width ||
             coordinates.y < 0 || coordinates.y >= _world_height ||
-            grid(coordinates) == OBSTACLE ){
+            worldGrid(coordinates) == OBSTACLE ){
         return true;
     }
     return false;

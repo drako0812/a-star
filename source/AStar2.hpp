@@ -25,15 +25,20 @@ namespace AStar2
     using HeuristicFunction = std::function<uint(Vec2i, Vec2i)>;
     using CoordinateList = std::vector<Vec2i>;
 
-    typedef int NodePtr;
+    typedef int32_t NodePtr;
 
     struct Node
     {
-        uint G, H;
-        Vec2i coordinates;
+        uint32_t G, H;
+        uint16_t coord_x, coord_y;
         NodePtr parent;
 
         Node(Vec2i coord = {0,0}, NodePtr parent = -1);
+
+        Vec2i coordinates() const
+        {
+            return {coord_x, coord_y};
+        }
 
         uint getScore() const
         {
@@ -62,20 +67,33 @@ namespace AStar2
         void setHeuristic(HeuristicFunction heuristic_);
         CoordinateList  findPath(Vec2i source_, Vec2i target_);
 
-        const uint8_t& grid(Vec2i coordinates_) const
+        const uint8_t& worldGrid(Vec2i coordinates_) const
         {
             return _world_grid[coordinates_.y*_world_width + coordinates_.x];
         }
 
-        uint8_t& grid(Vec2i coordinates_)
+        uint8_t& worldGrid(Vec2i coordinates_)
         {
             return _world_grid[coordinates_.y*_world_width + coordinates_.x];
+        }
+
+        const uint8_t& closedGrid(Vec2i coordinates_) const
+        {
+            return _closed_grid[coordinates_.y*_world_width + coordinates_.x];
+        }
+
+        uint8_t& closedGrid(Vec2i coordinates_)
+        {
+            return _closed_grid[coordinates_.y*_world_width + coordinates_.x];
         }
 
         enum{
-          CLOSED   = 100,
           OBSTACLE = 0,
           EMPTY    = 255
+        };
+        enum{
+            CLOSED = 1,
+            OPEN = 0
         };
     private:
 
@@ -85,6 +103,7 @@ namespace AStar2
         int _world_height;
         bool _allow_5x5_search;
         std::vector<uint8_t> _world_grid;
+        std::vector<uint8_t> _closed_grid;
         std::vector<uint> _direction_cost;
         std::vector<Node> _memory_storage;
         std::vector<NodePtr> _closed_set;
