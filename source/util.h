@@ -5,6 +5,7 @@
 #include <vector>
 #include <sstream>
 #include <fstream>
+#include <iostream>
 #include <string.h>
 
 struct Image{
@@ -32,8 +33,8 @@ inline bool ReadImageFromPGM(const char* filename, Image* image)
     std::getline(infile,inputLine);
     if(inputLine.compare("P5") != 0)
     {
-        std::cerr << "Version error "<< inputLine << std::endl;
-        return false;
+        std::cerr << "PGM Version error "<< inputLine << std::endl;
+        exit(1);
     }
 
     // Second line : comment
@@ -60,7 +61,7 @@ inline bool ReadImageFromPGM(const char* filename, Image* image)
     return true;
 }
 
-inline bool WriteImageToPGM(const char* filename, const Image& image)
+inline void WriteImageToPGM(const char* filename, const Image& image)
 {
     std::ofstream outfile(filename, std::ios_base::out | std::ios_base::binary);
 

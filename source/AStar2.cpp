@@ -27,13 +27,30 @@ Node::Node(Vec2i coordinates_, NodePtr parent_)
 
 Generator::Generator()
 {
-    setDiagonalMovement(false);
+    _allow_5x5_search = true;
     setHeuristic(&Heuristic::manhattan);
-    _directions_count = 4;
     _directions = {
         { 0, 1 }, { 1, 0 }, { 0, -1 }, { -1, 0 },
-        { -1, -1 }, { 1, 1 }, { -1, 1 }, { 1, -1 }
+        { -1, -1 }, { 1, 1 }, { -1, 1 }, { 1, -1 },
+
+        { -2, -2 }, { -2, -1 }, { -2, 0 }, { -2, 1 }, { -2, 2 },
+        { -1, -2 },                                   { -1, 2 },
+        { -0, -2 },                                   {  0, 2 },
+        {  1, -2 },                                   {  1, 2 },
+        {  2, -2 }, {  2, -1 }, {  2, 0 }, {  2, 1 }, {  2, 2 }
     };
+
+    _direction_cost = {
+        10, 10, 10, 10,
+        14, 14, 14, 14,
+
+        28, 24, 20, 24, 28,
+        24,             24,
+        20,             20,
+        24,             20,
+        28, 24, 20, 24, 28
+    };
+
     _memory_storage.reserve(1000);
 }
 
@@ -53,11 +70,6 @@ void Generator::setWorldData(int width, int height, const uint8_t *data)
     }
 
     _open_set_2Dmap.resize(width*height, -1);
-}
-
-void Generator::setDiagonalMovement(bool enable_)
-{
-    _directions_count = (enable_ ? 8 : 4);
 }
 
 void Generator::setHeuristic(HeuristicFunction heuristic_)
@@ -90,6 +102,8 @@ NodePtr Generator::findMinScoreInOpenSet()
 
 CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
 {
+    clean();
+
     auto toIndex = [this](Vec2i pos) -> size_t
     { return static_cast<size_t>(_world_width*pos.y + pos.x); };
 
@@ -114,7 +128,25 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
 
         grid( coordinates ) = CLOSED;
 
-        for (uint i = 0; i < _directions_count; ++i)
+        bool can_do_jump_16 = _allow_5x5_search;
+        for (int i=0; i<8 && can_do_jump_16; i++)
+        {
+            can_do_jump_16 = ! detectCollision( coordinates + _directions[i] );
+        }
+
+        uint start_i = 0;
+        uint end_i   = 8;
+        if( can_do_jump_16 )
+        {
+            start_i = 8;
+            end_i = 8 + 16;
+            for (int i=0; i<8 && can_do_jump_16; i++)
+            {
+               // grid( coordinates + _directions[i] ) = CLOSED;
+            }
+        }
+
+        for (uint i = start_i; i < end_i; ++i)
         {
             Node* curr_node = getNode(current_ptr);
             Vec2i newCoordinates(coordinates + _directions[i]);
@@ -123,7 +155,7 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
                 continue;
             }
 
-            uint totalCost = curr_node->G + ((i < 4) ? 10 : 14);
+            uint totalCost = curr_node->G + _direction_cost[i];
 
             size_t newIndex = toIndex(newCoordinates);
             NodePtr successor_ptr = _open_set_2Dmap[ newIndex ];
@@ -158,8 +190,6 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
                      " closed set " << _closed_set.size() <<
                      " open set " << _open_set.size() << std::endl;
     }
-
-    clean();
 
     return path;
 }
@@ -197,19 +227,19 @@ Vec2i Heuristic::getDelta(Vec2i source, Vec2i target)
 
 uint Heuristic::manhattan(Vec2i source, Vec2i target)
 {
-    auto delta = std::move(getDelta(source, target));
+    auto delta = getDelta(source, target);
     return static_cast<uint>(10 * (delta.x + delta.y));
 }
 
 uint Heuristic::euclidean(Vec2i source, Vec2i target)
 {
-    auto delta = std::move(getDelta(source, target));
+    auto delta = getDelta(source, target);
     return static_cast<uint>(10 * sqrt(pow(delta.x, 2) + pow(delta.y, 2)));
 }
 
 uint Heuristic::octagonal(Vec2i source, Vec2i target)
 {
-    auto delta = std::move(getDelta(source, target));
+    auto delta = getDelta(source, target);
     return 10 * (delta.x + delta.y) + (-6) * std::min(delta.x, delta.y);
 }
 

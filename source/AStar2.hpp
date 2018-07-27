@@ -59,7 +59,6 @@ namespace AStar2
         ~Generator();
 
         void setWorldData(int width, int height, const uint8_t *data);
-        void setDiagonalMovement(bool enable_);
         void setHeuristic(HeuristicFunction heuristic_);
         CoordinateList  findPath(Vec2i source_, Vec2i target_);
 
@@ -84,8 +83,9 @@ namespace AStar2
         CoordinateList _directions;
         int _world_width;
         int _world_height;
-        uint _directions_count;
+        bool _allow_5x5_search;
         std::vector<uint8_t> _world_grid;
+        std::vector<uint> _direction_cost;
         std::vector<Node> _memory_storage;
         std::vector<NodePtr> _closed_set;
         std::multimap<uint, NodePtr> _open_set;

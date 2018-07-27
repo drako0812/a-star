@@ -1,20 +1,18 @@
 #include <iostream>
 #include <benchmark/benchmark.h>
 
-#include "util.h"
+#include "source/util.h"
 #include "source/AStar.hpp"
 #include "source/AStar2.hpp"
 
-const char filename[] = "/home/dfaconti/Pictures/map_1000.pgm";
-const bool diagonal = false;
+const char filename[] = "/home/davide.faconti/Pictures/maze_250.pgm";
 
 static void BM_AStar(benchmark::State& state)
 {
   AStar::Generator generator;
   Image image;
   ReadImageFromPGM(filename, &image);
-
-  generator.setDiagonalMovement(diagonal);
+  generator.setDiagonalMovement(true);
   generator.setWorldSize( {image.width, image.height } );
 
   for (int y=0; y < image.height; y++)
@@ -31,7 +29,9 @@ static void BM_AStar(benchmark::State& state)
   AStar::CoordinateList result;
   for (auto _ : state)
   {
-      result = generator.findPath( {0,0}, { image.width-1, image.height-1 } );
+      result = generator.findPath(
+      { image.width/2, 0 },
+      { image.width/2, image.height/2 } );
   }
 
   for(auto& point: result)
@@ -39,14 +39,13 @@ static void BM_AStar(benchmark::State& state)
         image.at( point.x, point.y ) = 140;
   }
 
-  WriteImageToPGM("/home/dfaconti/Pictures/map_out.pgm", image);
+  WriteImageToPGM("/home/davide.faconti/Pictures/map_out.pgm", image);
 
 }
 
 static void BM_AStar2(benchmark::State& state)
 {
   AStar2::Generator generator;
-  generator.setDiagonalMovement(diagonal);
   Image image;
   ReadImageFromPGM(filename, &image);
 
@@ -55,7 +54,9 @@ static void BM_AStar2(benchmark::State& state)
   AStar2::CoordinateList result;
   for (auto _ : state)
   {
-      result = generator.findPath( {0,0}, { image.width-1, image.height-1 } );
+      result = generator.findPath(
+      { image.width/2, 0 },
+      { image.width/2, image.height/2 } );
   }
 
   for(auto& point: result)
@@ -63,13 +64,13 @@ static void BM_AStar2(benchmark::State& state)
         image.at( point.x, point.y ) = 140;
   }
 
-  WriteImageToPGM("/home/dfaconti/Pictures/map_out2.pgm", image);
+  WriteImageToPGM("/home/davide.faconti/Pictures/map_out2.pgm", image);
 
 }
 
 BENCHMARK(BM_AStar2);
 
-//BENCHMARK(BM_AStar);
+BENCHMARK(BM_AStar);
 
 
 
