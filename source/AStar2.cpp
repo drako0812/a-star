@@ -23,20 +23,19 @@ Vec2i operator + (const Vec2i& left_, const Vec2i& right_)
     return{ left_.x + right_.x, left_.y + right_.y };
 }
 
-Node::Node(Vec2i coordinates_, NodePtr parent_)
+Node::Node(Vec2i coordinates_)
 {
-    parent = parent_;
     coord_x = coordinates_.x;
     coord_y = coordinates_.y;
-    G = H = 0;
+    G = 0;
 }
 
 
 Generator::Generator():
     _open_set( CompareScore() )
 {
-    _allow_5x5_search = true;
-    setHeuristic(&Heuristic::octagonal);
+    _allow_5x5_search = false;
+    setHeuristic(&Heuristic::manhattan);
     _directions = {
         { -1, -1 },  { 0, -1 }, { 1, -1 },
         { -1,  0 },             { 1,  0 },
@@ -66,8 +65,6 @@ Generator::Generator():
         22,             22,
         28, 22, 20, 22, 28
     };
-
-    _memory_storage.reserve(1000);
 }
 
 Generator::~Generator()
@@ -104,53 +101,52 @@ void Generator::setHeuristic(HeuristicFunction heuristic_)
 
 void Generator::clean()
 {
-    _memory_storage.clear();
     while( !_open_set.empty() )
     {
         _open_set.pop();
     }
-    _open_set_2Dmap.clear();
-    _open_set_2Dmap.resize( _world_width*_world_height, NullNodePtr );
+    _cost_map.clear();
+    _cost_map.resize( _world_width*_world_height,
+                      std::numeric_limits<float>::infinity() );
+
+    _path_map.resize(_world_width*_world_height);
 
     _closed_grid.clear();
-    _closed_grid.resize( _world_width*_world_height, false );
+    _closed_grid.resize(_world_width*_world_height, false);
 }
 
-NodePtr Generator::findMinScoreInOpenSet()
+Node Generator::findMinScoreInOpenSet()
 {
-    if( _open_set.empty() ) return NullNodePtr;
-
-    NodePtr current = _open_set.top().second;
+    Node current = _open_set.top().second;
     _open_set.pop();
     return current;
 }
 
-CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
+CoordinateList Generator::findPath(Vec2i startPos, Vec2i goalPos)
 {
     clean();
 
     auto toIndex = [this](Vec2i pos) -> size_t
     { return static_cast<size_t>(_world_width*pos.y + pos.x); };
 
-    NodePtr current_ptr = NullNodePtr;
-    _open_set.push( {0, newNode(source_,NullNodePtr) } );
-    _open_set_2Dmap[ toIndex(source_) ] = _open_set.top().second;
+    const int startIndex = toIndex(startPos);
+    const int goalIndex = toIndex(goalPos);
+
+    _open_set.push( {0, Node(startPos) } );
+    _cost_map[ startIndex ] = 0.0;
 
     bool solution_found = false;
 
     while (! _open_set.empty() )
     {
-        current_ptr = findMinScoreInOpenSet();
-        Vec2i coordinates = getNode(current_ptr)->coordinates();
+        Node current = findMinScoreInOpenSet();
+        Vec2i coordinates = current.coordinates();
 
-        _open_set_2Dmap[ toIndex( coordinates ) ] = NullNodePtr;
-
-        if (coordinates == target_) {
+        if (coordinates == goalPos) {
             solution_found = true;
             break;
         }
-
-        setClosedGrid( coordinates, true );
+        _closed_grid[ toIndex(coordinates) ] = true;
 
         bool can_do_jump_16 = _allow_5x5_search;
         for (int i=0; i<8 && can_do_jump_16; i++)
@@ -168,42 +164,40 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
 
         for (uint i = start_i; i < end_i; ++i)
         {
-            Node* curr_node = getNode(current_ptr);
             Vec2i newCoordinates(coordinates + _directions[i]);
+            size_t newIndex = toIndex(newCoordinates);
 
             if (detectCollision(newCoordinates) ||
-                closedGrid( newCoordinates ) ) {
+                _closed_grid[newIndex] ) {
                 continue;
             }
+
             double pixel_color =  worldGrid( newCoordinates );
-            double factor = 1.0 + static_cast<double>((EMPTY - pixel_color) / 26) / 4.0;
-            uint totalCost = curr_node->G + _direction_cost[i] * factor;
+            double factor = 1.0 + static_cast<float>((EMPTY - pixel_color)) / 50.0;
+            uint new_cost = current.G + _direction_cost[i] * factor;
 
-            size_t newIndex = toIndex(newCoordinates);
-            NodePtr successor_ptr = _open_set_2Dmap[ newIndex ];
 
-            if (successor_ptr == NullNodePtr) {
-                successor_ptr = newNode(newCoordinates, current_ptr );
-                auto successor = getNode(successor_ptr);
-                successor->G = totalCost;
-                successor->H = _heuristic(successor->coordinates(), target_);
-                _open_set.push( { successor->getScore(), successor_ptr } );
-                _open_set_2Dmap[ newIndex ] = successor_ptr;
-            }
-            else if (totalCost < getNode(successor_ptr)->G) {
-                auto successor = getNode(successor_ptr);
-                successor->parent = current_ptr;
-                successor->G = totalCost;
+            if( new_cost < _cost_map[ newIndex ])
+            {
+                Node  successor = Node(newCoordinates );
+                successor.G = new_cost;
+                auto H = _heuristic(successor.coordinates(), goalPos);
+
+                _open_set.push( { successor.G + H, successor } );
+                _cost_map[ newIndex ] = new_cost;
+                _path_map[ newIndex ] = toIndex( current.coordinates() );
             }
         }
     }
 
     CoordinateList path;
-   // if( solution_found )
+    if( solution_found )
     {
-        while (current_ptr != NullNodePtr) {
-            path.push_back( getNode(current_ptr)->coordinates());
-            current_ptr = getNode(current_ptr)->parent;
+        int index = goalIndex;
+        while (index != startIndex)
+        {
+            path.push_back( { index % _world_width, index / _world_width} );
+            index = _path_map[index];
         }
     }
 
@@ -239,7 +233,7 @@ void Generator::exportPPM(const char *filename, CoordinateList* path)
                 uint8_t color[] = {0,0,0};
                 mempcpy( &image[ toIndex(x,y) ], color, 3 );
             }
-            else if( closedGrid( {x,y}) )
+            else if( _closed_grid[ y*_world_width + x ] )
             {
                 uint8_t color[] = {255,222,222};
                 mempcpy( &image[ toIndex(x,y) ], color, 3 );
@@ -264,21 +258,6 @@ void Generator::exportPPM(const char *filename, CoordinateList* path)
     outfile.close();
 }
 
-NodePtr Generator::findNodeOnList(NodeSet& nodes, Vec2i coordinates)
-{
-    for (auto node : nodes) {
-        if ( getNode(node)->coordinates() == coordinates) {
-            return node;
-        }
-    }
-    return NullNodePtr;
-}
-
-NodePtr Generator::newNode(Vec2i coord, NodePtr parent)
-{   
-    _memory_storage.emplace_back( Node(coord, parent) );
-    return static_cast<NodePtr>(_memory_storage.size())-1 ;
-}
 
 bool Generator::detectCollision(Vec2i coordinates)
 {

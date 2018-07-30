@@ -25,10 +25,20 @@ namespace AStar2
     using HeuristicFunction = std::function<uint(Vec2i, Vec2i)>;
     using CoordinateList = std::vector<Vec2i>;
 
-    typedef int32_t NodePtr;
-    const int NullNodePtr = -1;
+    struct Node
+    {
+        float G;
+        int16_t coord_x, coord_y;
 
-    typedef std::pair<uint,NodePtr> ScoreNodePair;
+        Node(Vec2i coord = {0,0});
+
+        Vec2i coordinates() const
+        {
+            return {coord_x, coord_y};
+        }
+    };
+
+    typedef std::pair<uint,Node> ScoreNodePair;
 
     struct CompareScore
     {
@@ -39,37 +49,9 @@ namespace AStar2
         }
     };
 
-    struct Node
-    {
-        uint32_t G, H;
-        int16_t coord_x, coord_y;
-        NodePtr parent;
-
-        Node(Vec2i coord = {0,0}, NodePtr parent = NullNodePtr);
-
-        Vec2i coordinates() const
-        {
-            return {coord_x, coord_y};
-        }
-
-        uint getScore() const
-        {
-            return G + H;
-        }
-
-        bool operator <(const Node& other) const
-        {
-            return getScore() < other.getScore();
-        }
-    };
-
-    using NodeSet = std::vector<NodePtr>;
-
     class Generator
     {
         bool detectCollision(Vec2i coordinates);
-        NodePtr  findNodeOnList(NodeSet &nodes, Vec2i coordinates);
-        NodePtr  newNode(Vec2i coord, NodePtr parent);
 
     public:
         Generator();
@@ -94,16 +76,6 @@ namespace AStar2
             return _world_grid[coordinates_.y*_world_width + coordinates_.x];
         }
 
-        bool closedGrid(Vec2i coord) const
-        {
-            return _closed_grid[coord.y*_world_width + coord.x];
-        }
-
-        void setClosedGrid(Vec2i coord, bool value)
-        {
-            _closed_grid[coord.y*_world_width + coord.x] = value;
-        }
-
         void exportPPM(const char* filename, CoordinateList* path);
 
         enum{
@@ -120,15 +92,14 @@ namespace AStar2
         bool _allow_5x5_search;
         std::vector<uint8_t> _world_grid;
         std::vector<bool>    _closed_grid;
-        std::vector<Node> _memory_storage;
 
         std::priority_queue<ScoreNodePair, std::vector<ScoreNodePair>, CompareScore> _open_set;
 
-        std::vector<NodePtr> _open_set_2Dmap;
+        std::vector<float>    _cost_map;
+        std::vector<uint32_t> _path_map;
 
         void  clean();
-        NodePtr findMinScoreInOpenSet();
-        Node* getNode( NodePtr index) { return &_memory_storage[index]; }
+        Node findMinScoreInOpenSet();
     };
 
     class Heuristic
