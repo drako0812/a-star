@@ -35,22 +35,30 @@ Node::Node(Vec2i coordinates_, NodePtr parent_)
 Generator::Generator():
     _open_set( CompareScore() )
 {
-    _allow_5x5_search = false;
+    _allow_5x5_search = true;
     setHeuristic(&Heuristic::manhattan);
     _directions = {
-        { 0, 1 }, { 1, 0 }, { 0, -1 }, { -1, 0 },
-        { -1, -1 }, { 1, 1 }, { -1, 1 }, { 1, -1 },
+        { -1, -1 },  { 0, -1 }, { 1, -1 },
+        { -1,  0 },             { 1,  0 },
+        { -1,  1 },  { 0, 1 },  { 1,  1 },
+
+//        { -2, -2 }, { -1, -2 }, { 0, -2 }, { 1, -2 }, { 2, -2 },
+//        { -2, -1 },                                   { 2, -1 },
+//        { -2,  0 },                                   { 2,  0 },
+//        { -2,  1 },                                   { 2,  1 },
+//        { -2,  2 }, { -1,  2 }, { 0,  2 }, { 1,  2 }, { 2,  2 }
 
         { -2, -2 }, { -2, -1 }, { -2, 0 }, { -2, 1 }, { -2, 2 },
         { -1, -2 },                                   { -1, 2 },
         { -0, -2 },                                   {  0, 2 },
         {  1, -2 },                                   {  1, 2 },
-        {  2, -2 }, {  2, -1 }, {  2, 0 }, {  2, 1 }, {  2, 2 }
+        {  2, -2 }, { 2,  -1 }, { 2,  0 }, { 2,  1 }, {  2, 2 }
     };
 
     _direction_cost = {
-        10, 10, 10, 10,
-        14, 14, 14, 14,
+        14, 10, 14,
+        10,     10,
+        14, 10, 14,
 
         28, 22, 20, 22, 28,
         22,             22,
@@ -101,8 +109,6 @@ void Generator::clean()
     {
         _open_set.pop();
     }
-    _closed_set.clear();
-
     _open_set_2Dmap.clear();
     _open_set_2Dmap.resize( _world_width*_world_height, -1 );
 
@@ -138,7 +144,6 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
         Vec2i coordinates = getNode(current_ptr)->coordinates();
 
         _open_set_2Dmap[ toIndex( coordinates ) ] = -1;
-        _closed_set.push_back( current_ptr );
 
         if (coordinates == target_) {
             solution_found = true;
@@ -153,15 +158,13 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
             can_do_jump_16 = ! detectCollision( coordinates + _directions[i] );
         }
 
-        uint start_i = 0;
         uint end_i   = 8;
         if( can_do_jump_16 )
         {
-            start_i = 8;
             end_i = 8 + 16;
         }
 
-        for (uint i = start_i; i < end_i; ++i)
+        for (uint i = 0; i < end_i; ++i)
         {
             Node* curr_node = getNode(current_ptr);
             Vec2i newCoordinates(coordinates + _directions[i]);
@@ -205,7 +208,6 @@ CoordinateList Generator::findPath(Vec2i source_, Vec2i target_)
     if( !solution_found )
     {
         std::cout << "found " << solution_found <<
-                     " closed set " << _closed_set.size() <<
                      " open set " << _open_set.size() << std::endl;
     }
 
@@ -273,7 +275,7 @@ NodePtr Generator::findNodeOnList(NodeSet& nodes, Vec2i coordinates)
 NodePtr Generator::newNode(Vec2i coord, NodePtr parent)
 {   
     _memory_storage.emplace_back( Node(coord, parent) );
-    return static_cast<int>(_memory_storage.size())-1 ;
+    return static_cast<NodePtr>(_memory_storage.size())-1 ;
 }
 
 bool Generator::detectCollision(Vec2i coordinates)

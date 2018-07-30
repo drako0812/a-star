@@ -114,7 +114,6 @@ namespace AStar2
         std::vector<bool> _closed_grid;
         std::vector<uint> _direction_cost;
         std::vector<Node> _memory_storage;
-        std::vector<NodePtr> _closed_set;
 
        // std::multimap<uint, NodePtr> _open_set;
         std::priority_queue<ScoreNodePair, std::vector<ScoreNodePair>, CompareScore> _open_set;
