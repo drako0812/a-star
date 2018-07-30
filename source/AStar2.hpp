@@ -26,6 +26,8 @@ namespace AStar2
     using CoordinateList = std::vector<Vec2i>;
 
     typedef int32_t NodePtr;
+    const int NullNodePtr = -1;
+
     typedef std::pair<uint,NodePtr> ScoreNodePair;
 
     struct CompareScore
@@ -40,10 +42,10 @@ namespace AStar2
     struct Node
     {
         uint32_t G, H;
-        uint16_t coord_x, coord_y;
+        int16_t coord_x, coord_y;
         NodePtr parent;
 
-        Node(Vec2i coord = {0,0}, NodePtr parent = -1);
+        Node(Vec2i coord = {0,0}, NodePtr parent = NullNodePtr);
 
         Vec2i coordinates() const
         {
@@ -82,6 +84,11 @@ namespace AStar2
             return _world_grid[coordinates_.y*_world_width + coordinates_.x];
         }
 
+        void allow5by5(bool allow)
+        {
+            _allow_5x5_search = allow;
+        }
+
         uint8_t& worldGrid(Vec2i coordinates_)
         {
             return _world_grid[coordinates_.y*_world_width + coordinates_.x];
@@ -106,22 +113,21 @@ namespace AStar2
     private:
 
         HeuristicFunction _heuristic;
-        CoordinateList _directions;
+        CoordinateList    _directions;
+        std::vector<uint> _direction_cost;
         int _world_width;
         int _world_height;
         bool _allow_5x5_search;
         std::vector<uint8_t> _world_grid;
-        std::vector<bool> _closed_grid;
-        std::vector<uint> _direction_cost;
+        std::vector<bool>    _closed_grid;
         std::vector<Node> _memory_storage;
 
-       // std::multimap<uint, NodePtr> _open_set;
         std::priority_queue<ScoreNodePair, std::vector<ScoreNodePair>, CompareScore> _open_set;
 
         std::vector<NodePtr> _open_set_2Dmap;
+
         void  clean();
         NodePtr findMinScoreInOpenSet();
-
         Node* getNode( NodePtr index) { return &_memory_storage[index]; }
     };
 
