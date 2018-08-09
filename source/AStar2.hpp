@@ -21,7 +21,7 @@ struct Coord2D
     bool operator == (const Coord2D& coordinates);
 };
 
-using uint = unsigned int;
+
 using HeuristicFunction = std::function<uint(Coord2D, Coord2D)>;
 using CoordinateList = std::vector<Coord2D>;
 
@@ -52,7 +52,6 @@ struct CompareScore
 
 class Generator
 {
-    bool detectCollision(Coord2D coordinates);
 
 public:
     Generator();
@@ -67,21 +66,12 @@ public:
     /// Funtion that performs the actual A* computation.
     CoordinateList  findPath(Coord2D source_, Coord2D target_);
 
-    const uint8_t& worldGrid(Coord2D coordinates_) const
-    {
-        return _world_grid[coordinates_.y*_world_width + coordinates_.x];
-    }
 
     /// If false, it looks at the neighbours ina 3x3 area arounf the current position.
     /// If false, a 5x5 search area is used instead.
     void allow5by5(bool allow)
     {
         _allow_5x5_search = allow;
-    }
-
-    uint8_t& worldGrid(Coord2D coordinates_)
-    {
-        return _world_grid[coordinates_.y*_world_width + coordinates_.x];
     }
 
     /// Export the resulting solution in a visual way. Useful for debugging.
@@ -91,6 +81,24 @@ public:
         OBSTACLE = 0,
         EMPTY    = 255
     };
+
+    struct Cell{
+        uint8_t  world;
+        bool     is_closed;
+        uint32_t path;
+        float    cost;
+    };
+
+    const Cell& cell(Coord2D coordinates_) const
+    {
+        return _map[coordinates_.y*_world_width + coordinates_.x];
+    }
+
+    Cell& cell(Coord2D coordinates_)
+    {
+        return _map[coordinates_.y*_world_width + coordinates_.x];
+    }
+
 private:
 
     HeuristicFunction _heuristic;
@@ -99,16 +107,14 @@ private:
     int _world_height;
     bool _allow_5x5_search;
     std::vector<uint> _direction_cost;
-    std::vector<uint8_t> _world_grid;
-    std::vector<bool>    _closed_grid;
 
     std::priority_queue<ScoreNodePair, std::vector<ScoreNodePair>, CompareScore> _open_set;
 
-    std::vector<float>    _cost_map;
-    std::vector<uint32_t> _path_map;
+    bool detectCollision(Coord2D coordinates);
+
+    std::vector<Cell> _map;
 
     void  clean();
-
 };
 
 class Heuristic
@@ -120,6 +126,7 @@ public:
     static uint euclidean(Coord2D source_, Coord2D target_);
     static uint octagonal(Coord2D source_, Coord2D target_);
 };
+
 }
 
 #endif // __ASTAR_HPP_8F637DB91972F6C878D41D63F7E7214F__

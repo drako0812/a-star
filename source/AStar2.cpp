@@ -76,19 +76,20 @@ void Generator::setWorldData(int width, int height, const uint8_t *data)
 {
     _world_width  = width;
     _world_height = height;
-    _world_grid.resize(width*height);
+    _map.resize(width*height);
+
     for (size_t i=0; i<width*height; i++ )
     {
         if(  data[i] < 20 )
         {
-            _world_grid[i] = OBSTACLE;
+            _map[i].world = OBSTACLE;
         }
         if(  data[i] > 235 )
         {
-            _world_grid[i] = EMPTY;
+            _map[i].world = EMPTY;
         }
         else{
-            _world_grid[i] = data[i];
+            _map[i].world = data[i];
         }
     }
 }
@@ -105,14 +106,13 @@ void Generator::clean()
     {
         _open_set.pop();
     }
-    _cost_map.clear();
-    _cost_map.resize( _world_width*_world_height,
-                      std::numeric_limits<float>::infinity() );
 
-    _path_map.resize(_world_width*_world_height);
-
-    _closed_grid.clear();
-    _closed_grid.resize(_world_width*_world_height, false);
+    for(Cell& cell: _map)
+    {
+        cell.cost = std::numeric_limits<float>::infinity();
+        cell.path = 0.0;
+        cell.is_closed = false;
+    }
 }
 
 
@@ -127,7 +127,7 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
     const int goalIndex = toIndex(goalPos);
 
     _open_set.push( {0, Node(startPos) } );
-    _cost_map[ startIndex ] = 0.0;
+    _map[ startIndex ].cost = 0.0;
 
     bool solution_found = false;
 
@@ -142,7 +142,7 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
             solution_found = true;
             break;
         }
-        _closed_grid[ toIndex(coordinates) ] = true;
+        _map[ toIndex(coordinates) ].is_closed = true;
 
         bool can_do_jump_16 = _allow_5x5_search;
         for (int i=0; i<8 && can_do_jump_16; i++)
@@ -164,23 +164,23 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
             size_t newIndex = toIndex(newCoordinates);
 
             if (detectCollision(newCoordinates) ||
-                _closed_grid[newIndex] ) {
+                _map[newIndex].is_closed ) {
                 continue;
             }
 
-            float pixel_color =  worldGrid( newCoordinates );
+            float pixel_color =  cell( newCoordinates ).world;
             float factor = 1.0f + static_cast<float>(EMPTY - pixel_color) / 50.0f;
             uint new_cost = current.G + _direction_cost[i] * factor;
 
-            if( new_cost < _cost_map[ newIndex ])
+            if( new_cost < _map[ newIndex ].cost)
             {
                 Node  successor = Node(newCoordinates );
                 successor.G = new_cost;
                 auto H = _heuristic(successor.coordinates(), goalPos);
 
                 _open_set.push( { successor.G + H, successor } );
-                _cost_map[ newIndex ] = new_cost;
-                _path_map[ newIndex ] = toIndex( current.coordinates() );
+                _map[ newIndex ].cost = new_cost;
+                _map[ newIndex ].path = toIndex( current.coordinates() );
             }
         }
     }
@@ -192,7 +192,7 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
         while (index != startIndex)
         {
             path.push_back( { index % _world_width, index / _world_width} );
-            index = _path_map[index];
+            index = _map[index].path;
         }
     }
 
@@ -223,12 +223,12 @@ void Generator::exportPPM(const char *filename, CoordinateList* path)
     {
         for (int x=0; x<_world_width; x++)
         {
-            if( worldGrid({x,y}) == OBSTACLE )
+            if( cell({x,y}).world == OBSTACLE )
             {
                 uint8_t color[] = {0,0,0};
                 mempcpy( &image[ toIndex(x,y) ], color, 3 );
             }
-            else if( _closed_grid[ y*_world_width + x ] )
+            else if( _map[ y*_world_width + x ].is_closed )
             {
                 uint8_t color[] = {255,222,222};
                 mempcpy( &image[ toIndex(x,y) ], color, 3 );
@@ -258,7 +258,7 @@ bool Generator::detectCollision(Coord2D coordinates)
 {
     if (coordinates.x < 0 || coordinates.x >= _world_width ||
             coordinates.y < 0 || coordinates.y >= _world_height ||
-            worldGrid(coordinates) == OBSTACLE ){
+            cell(coordinates).world == OBSTACLE ){
         return true;
     }
     return false;
