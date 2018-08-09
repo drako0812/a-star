@@ -13,17 +13,17 @@ using namespace std::placeholders;
 
 namespace AStar2{
 
-bool Vec2i::operator == (const Vec2i& coordinates)
+bool Coord2D::operator == (const Coord2D& coordinates)
 {
     return (x == coordinates.x && y == coordinates.y);
 }
 
-Vec2i operator + (const Vec2i& left_, const Vec2i& right_)
+Coord2D operator + (const Coord2D& left_, const Coord2D& right_)
 {
     return{ left_.x + right_.x, left_.y + right_.y };
 }
 
-Node::Node(Vec2i coordinates_)
+Node::Node(Coord2D coordinates_)
 {
     coord_x = coordinates_.x;
     coord_y = coordinates_.y;
@@ -115,18 +115,12 @@ void Generator::clean()
     _closed_grid.resize(_world_width*_world_height, false);
 }
 
-Node Generator::findMinScoreInOpenSet()
-{
-    Node current = _open_set.top().second;
-    _open_set.pop();
-    return current;
-}
 
-CoordinateList Generator::findPath(Vec2i startPos, Vec2i goalPos)
+CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
 {
     clean();
 
-    auto toIndex = [this](Vec2i pos) -> size_t
+    auto toIndex = [this](Coord2D pos) -> size_t
     { return static_cast<size_t>(_world_width*pos.y + pos.x); };
 
     const int startIndex = toIndex(startPos);
@@ -139,8 +133,10 @@ CoordinateList Generator::findPath(Vec2i startPos, Vec2i goalPos)
 
     while (! _open_set.empty() )
     {
-        Node current = findMinScoreInOpenSet();
-        Vec2i coordinates = current.coordinates();
+        Node current = _open_set.top().second;
+        _open_set.pop();
+
+        Coord2D coordinates = current.coordinates();
 
         if (coordinates == goalPos) {
             solution_found = true;
@@ -164,7 +160,7 @@ CoordinateList Generator::findPath(Vec2i startPos, Vec2i goalPos)
 
         for (uint i = start_i; i < end_i; ++i)
         {
-            Vec2i newCoordinates(coordinates + _directions[i]);
+            Coord2D newCoordinates(coordinates + _directions[i]);
             size_t newIndex = toIndex(newCoordinates);
 
             if (detectCollision(newCoordinates) ||
@@ -172,10 +168,9 @@ CoordinateList Generator::findPath(Vec2i startPos, Vec2i goalPos)
                 continue;
             }
 
-            double pixel_color =  worldGrid( newCoordinates );
-            double factor = 1.0 + static_cast<float>((EMPTY - pixel_color)) / 50.0;
+            float pixel_color =  worldGrid( newCoordinates );
+            float factor = 1.0f + static_cast<float>(EMPTY - pixel_color) / 50.0f;
             uint new_cost = current.G + _direction_cost[i] * factor;
-
 
             if( new_cost < _cost_map[ newIndex ])
             {
@@ -203,8 +198,8 @@ CoordinateList Generator::findPath(Vec2i startPos, Vec2i goalPos)
 
     if( !solution_found )
     {
-        std::cout << "found " << solution_found <<
-                     " open set " << _open_set.size() << std::endl;
+        std::cout << "Solution not found\n" <<
+                     " open set size= " << _open_set.size() << std::endl;
     }
 
     return path;
@@ -259,7 +254,7 @@ void Generator::exportPPM(const char *filename, CoordinateList* path)
 }
 
 
-bool Generator::detectCollision(Vec2i coordinates)
+bool Generator::detectCollision(Coord2D coordinates)
 {
     if (coordinates.x < 0 || coordinates.x >= _world_width ||
             coordinates.y < 0 || coordinates.y >= _world_height ||
@@ -269,24 +264,24 @@ bool Generator::detectCollision(Vec2i coordinates)
     return false;
 }
 
-Vec2i Heuristic::getDelta(Vec2i source, Vec2i target)
+Coord2D Heuristic::getDelta(Coord2D source, Coord2D target)
 {
     return{ abs(source.x - target.x),  abs(source.y - target.y) };
 }
 
-uint Heuristic::manhattan(Vec2i source, Vec2i target)
+uint Heuristic::manhattan(Coord2D source, Coord2D target)
 {
     auto delta = getDelta(source, target);
     return static_cast<uint>(10 * (delta.x + delta.y));
 }
 
-uint Heuristic::euclidean(Vec2i source, Vec2i target)
+uint Heuristic::euclidean(Coord2D source, Coord2D target)
 {
     auto delta = getDelta(source, target);
     return static_cast<uint>(10 * sqrt(pow(delta.x, 2) + pow(delta.y, 2)));
 }
 
-uint Heuristic::octagonal(Vec2i source, Vec2i target)
+uint Heuristic::octagonal(Coord2D source, Coord2D target)
 {
     auto delta = getDelta(source, target);
     return 10 * (delta.x + delta.y) + (-6) * std::min(delta.x, delta.y);
