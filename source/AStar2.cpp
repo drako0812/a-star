@@ -24,7 +24,7 @@ Coord2D operator + (const Coord2D& left_, const Coord2D& right_)
 }
 
 
-Generator::Generator():
+PathFinder::PathFinder():
     _open_set( CompareScore() )
 {
     _allow_5x5_search = false;
@@ -54,67 +54,67 @@ Generator::Generator():
     }};
 }
 
-Generator::~Generator()
+PathFinder::~PathFinder()
 {
 }
 
 
-void Generator::setWorldData(int width, int height, const uint8_t *data)
+void PathFinder::setWorldData(int width, int height, const uint8_t *data)
 {
     _world_width  = width;
     _world_height = height;
-    _map.resize(width*height);
+    _gridmap.resize(width*height);
 
     for (size_t i=0; i<width*height; i++ )
     {
         if(  data[i] < 20 )
         {
-            _map[i].world = OBSTACLE;
+            _gridmap[i].world = OBSTACLE;
         }
         if(  data[i] > 235 )
         {
-            _map[i].world = EMPTY;
+            _gridmap[i].world = EMPTY;
         }
         else{
-            _map[i].world = data[i];
+            _gridmap[i].world = data[i];
         }
     }
 }
 
-void Generator::setHeuristic(HeuristicFunction heuristic_)
+void PathFinder::setHeuristic(HeuristicFunction heuristic_)
 {
     _heuristic = std::bind(heuristic_, _1, _2);
 }
 
 
-void Generator::clean()
+void PathFinder::clean()
 {
     while( !_open_set.empty() )
     {
         _open_set.pop();
     }
 
-    for(Cell& cell: _map)
+    for(Cell& cell: _gridmap)
     {
-        cell.cost = std::numeric_limits<float>::infinity();
-        cell.path = 0.0;
-        cell.is_closed = false;
+        cell.cost_G = std::numeric_limits<float>::infinity();
+        cell.path_parent_index = 0.0;
+        cell.already_visited = false;
     }
 }
 
 
-CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
+CoordinateList PathFinder::findPath(Coord2D startPos, Coord2D goalPos)
 {
     clean();
 
-    auto toIndex = [this](Coord2D pos) -> size_t
-    { return static_cast<size_t>(_world_width*pos.y + pos.x); };
+    auto toIndex = [this](Coord2D pos) -> int
+    { return static_cast<int>(_world_width*pos.y + pos.x); };
 
     const int startIndex = toIndex(startPos);
     const int goalIndex = toIndex(goalPos);
 
     _open_set.push( {0, startPos } );
-    _map[startIndex].cost = 0.0;
+    _gridmap[startIndex].cost_G = 0.0;
 
     bool solution_found = false;
 
@@ -128,8 +128,8 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
             break;
         }
         int currentIndex = toIndex(currentCoord);
-        Cell& currentCell = _map[ currentIndex ];
-        currentCell.is_closed = true;
+        Cell& currentCell = _gridmap[ currentIndex ];
+        currentCell.already_visited = true;
 
         bool can_do_jump_16 = _allow_5x5_search;
         for (int i=0; i<8 && can_do_jump_16; i++)
@@ -148,24 +148,27 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
         for (uint i = start_i; i < end_i; ++i)
         {
             Coord2D newCoordinates(currentCoord + _directions[i]);
-            size_t newIndex = toIndex(newCoordinates);
-            Cell& newCell = _map[newIndex];
 
-            if (detectCollision(newCoordinates) ||
-                newCell.is_closed ) {
+            if (detectCollision(newCoordinates)) {
+                continue;
+            }
+            size_t newIndex = toIndex(newCoordinates);
+            Cell& newCell = _gridmap[newIndex];
+
+            if ( newCell.already_visited ) {
                 continue;
             }
 
-            float pixel_color =  cell( newCoordinates ).world;
+            float pixel_color =  newCell.world;
             float factor = 1.0f + static_cast<float>(EMPTY - pixel_color) / 50.0f;
-            float new_cost = currentCell.cost + _direction_cost[i] * factor;
+            float new_cost = currentCell.cost_G + _direction_cost[i] * factor;
 
-            if( new_cost < newCell.cost)
+            if( new_cost < newCell.cost_G)
             {
                 float H = _heuristic( newCoordinates, goalPos );
                 _open_set.push( { new_cost + H, newCoordinates } );
-                newCell.cost = new_cost;
-                newCell.path = currentIndex;
+                newCell.cost_G = new_cost;
+                newCell.path_parent_index = currentIndex;
             }
         }
     }
@@ -177,7 +180,7 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
         while (index != startIndex)
         {
             path.push_back( { index % _world_width, index / _world_width} );
-            index = _map[index].path;
+            index = _gridmap[index].path_parent_index;
         }
     }
     else
@@ -189,7 +192,7 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
     return path;
 }
 
-void Generator::exportPPM(const char *filename, CoordinateList* path)
+void PathFinder::exportPPM(const char *filename, CoordinateList* path)
 {
     std::ofstream outfile(filename, std::ios_base::out | std::ios_base::binary);
 
@@ -212,7 +215,7 @@ void Generator::exportPPM(const char *filename, CoordinateList* path)
                 uint8_t color[] = {0,0,0};
                 mempcpy( &image[ toIndex(x,y) ], color, 3 );
             }
-            else if( _map[ y*_world_width + x ].is_closed )
+            else if( _gridmap[ y*_world_width + x ].already_visited )
             {
                 uint8_t color[] = {255,222,222};
                 mempcpy( &image[ toIndex(x,y) ], color, 3 );
@@ -238,7 +241,7 @@ void Generator::exportPPM(const char *filename, CoordinateList* path)
 }
 
 
-bool Generator::detectCollision(Coord2D coordinates)
+bool PathFinder::detectCollision(Coord2D coordinates)
 {
     if (coordinates.x < 0 || coordinates.x >= _world_width ||
             coordinates.y < 0 || coordinates.y >= _world_height ||

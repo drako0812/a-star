@@ -39,12 +39,12 @@ struct CompareScore
     }
 };
 
-class Generator
+class PathFinder
 {
 
 public:
-    Generator();
-    ~Generator();
+    PathFinder();
+    ~PathFinder();
 
     /// Row-major ordered map, where an obstacle is represented as a pixel with value 0 (black)
     void setWorldData(int width, int height, const uint8_t *data);
@@ -73,19 +73,19 @@ public:
 
     struct Cell{
         uint8_t  world;
-        bool     is_closed;
-        uint32_t path;
-        float    cost;
+        bool     already_visited;
+        uint32_t path_parent_index;
+        float    cost_G;
     };
 
     const Cell& cell(Coord2D coordinates_) const
     {
-        return _map[coordinates_.y*_world_width + coordinates_.x];
+        return _gridmap[coordinates_.y*_world_width + coordinates_.x];
     }
 
     Cell& cell(Coord2D coordinates_)
     {
-        return _map[coordinates_.y*_world_width + coordinates_.x];
+        return _gridmap[coordinates_.y*_world_width + coordinates_.x];
     }
 
 private:
@@ -102,7 +102,7 @@ private:
 
     bool detectCollision(Coord2D coordinates);
 
-    std::vector<Cell> _map;
+    std::vector<Cell> _gridmap;
 
     void  clean();
 };

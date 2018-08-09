@@ -7,10 +7,11 @@
 
 static void BM_AStar_Smooth_1000(benchmark::State& state)
 {
-    AStar::Generator generator;
+    AStar::PathFinder generator;
     Image image;
     ReadImageFromPGM("../data/maze_1000_smooth.pgm", &image);
     generator.setWorldData( image.width, image.height, image.data.data() );
+    generator.allow5by5(true);
 
     AStar::CoordinateList result;
     for (auto _ : state)
@@ -25,7 +26,7 @@ static void BM_AStar_Smooth_1000(benchmark::State& state)
 
 static void BM_AStar_Big(benchmark::State& state)
 {
-    AStar::Generator generator;
+    AStar::PathFinder generator;
     Image image;
     ReadImageFromPGM("../data/maze_big.pgm", &image);
     generator.setWorldData( image.width, image.height, image.data.data() );
