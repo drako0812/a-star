@@ -23,13 +23,6 @@ Coord2D operator + (const Coord2D& left_, const Coord2D& right_)
     return{ left_.x + right_.x, left_.y + right_.y };
 }
 
-Node::Node(Coord2D coordinates_)
-{
-    coord_x = coordinates_.x;
-    coord_y = coordinates_.y;
-    G = 0;
-}
-
 
 Generator::Generator():
     _open_set( CompareScore() )
@@ -126,23 +119,23 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
     const int startIndex = toIndex(startPos);
     const int goalIndex = toIndex(goalPos);
 
-    _open_set.push( {0, Node(startPos) } );
+    _open_set.push( {0, startPos } );
     _map[ startIndex ].cost = 0.0;
 
     bool solution_found = false;
 
     while (! _open_set.empty() )
     {
-        Node current = _open_set.top().second;
+        Coord2D coordinates = _open_set.top().second;
         _open_set.pop();
-
-        Coord2D coordinates = current.coordinates();
 
         if (coordinates == goalPos) {
             solution_found = true;
             break;
         }
-        _map[ toIndex(coordinates) ].is_closed = true;
+        int currentIndex = toIndex(coordinates);
+        _map[ currentIndex ].is_closed = true;
+        float current_G = _map[currentIndex].cost;
 
         bool can_do_jump_16 = _allow_5x5_search;
         for (int i=0; i<8 && can_do_jump_16; i++)
@@ -170,17 +163,15 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
 
             float pixel_color =  cell( newCoordinates ).world;
             float factor = 1.0f + static_cast<float>(EMPTY - pixel_color) / 50.0f;
-            uint new_cost = current.G + _direction_cost[i] * factor;
+            float new_cost = current_G + _direction_cost[i] * factor;
 
             if( new_cost < _map[ newIndex ].cost)
             {
-                Node  successor = Node(newCoordinates );
-                successor.G = new_cost;
-                auto H = _heuristic(successor.coordinates(), goalPos);
+                auto H = _heuristic( newCoordinates, goalPos );
 
-                _open_set.push( { successor.G + H, successor } );
+                _open_set.push( { new_cost + H, newCoordinates } );
                 _map[ newIndex ].cost = new_cost;
-                _map[ newIndex ].path = toIndex( current.coordinates() );
+                _map[ newIndex ].path = currentIndex;
             }
         }
     }

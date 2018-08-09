@@ -25,26 +25,14 @@ struct Coord2D
 using HeuristicFunction = std::function<uint(Coord2D, Coord2D)>;
 using CoordinateList = std::vector<Coord2D>;
 
-struct Node
-{
-    float G;
-    int16_t coord_x, coord_y;
 
-    Node(Coord2D coord = {0,0});
-
-    Coord2D coordinates() const
-    {
-        return {coord_x, coord_y};
-    }
-};
-
-typedef std::pair<uint,Node> ScoreNodePair;
+typedef std::pair<float,Coord2D> ScoreCoordPair;
 
 struct CompareScore
 {
     //Note: we want the priority_queue to be ordered from smaller to larger
-    bool operator() (const ScoreNodePair& a,
-                     const ScoreNodePair& b)
+    bool operator() (const ScoreCoordPair& a,
+                     const ScoreCoordPair& b)
     {
         return a.first > b.first;
     }
@@ -108,7 +96,7 @@ private:
     bool _allow_5x5_search;
     std::vector<uint> _direction_cost;
 
-    std::priority_queue<ScoreNodePair, std::vector<ScoreNodePair>, CompareScore> _open_set;
+    std::priority_queue<ScoreCoordPair, std::vector<ScoreCoordPair>, CompareScore> _open_set;
 
     bool detectCollision(Coord2D coordinates);
 
