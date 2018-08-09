@@ -120,21 +120,21 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
 
     while (! _open_set.empty() )
     {
-        Coord2D coordinates = _open_set.top().second;
+        Coord2D currentCoord = _open_set.top().second;
         _open_set.pop();
 
-        if (coordinates == goalPos) {
+        if (currentCoord == goalPos) {
             solution_found = true;
             break;
         }
-        int currentIndex = toIndex(coordinates);
-        Cell& current = _map[ currentIndex ];
-        current.is_closed = true;
+        int currentIndex = toIndex(currentCoord);
+        Cell& currentCell = _map[ currentIndex ];
+        currentCell.is_closed = true;
 
         bool can_do_jump_16 = _allow_5x5_search;
         for (int i=0; i<8 && can_do_jump_16; i++)
         {
-            can_do_jump_16 = ! detectCollision( coordinates + _directions[i] );
+            can_do_jump_16 = ! detectCollision( currentCoord + _directions[i] );
         }
 
         uint start_i = 0;
@@ -147,24 +147,25 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
 
         for (uint i = start_i; i < end_i; ++i)
         {
-            Coord2D newCoordinates(coordinates + _directions[i]);
+            Coord2D newCoordinates(currentCoord + _directions[i]);
             size_t newIndex = toIndex(newCoordinates);
+            Cell& newCell = _map[newIndex];
 
             if (detectCollision(newCoordinates) ||
-                _map[newIndex].is_closed ) {
+                newCell.is_closed ) {
                 continue;
             }
 
             float pixel_color =  cell( newCoordinates ).world;
             float factor = 1.0f + static_cast<float>(EMPTY - pixel_color) / 50.0f;
-            float new_cost = current.cost + _direction_cost[i] * factor;
+            float new_cost = currentCell.cost + _direction_cost[i] * factor;
 
-            if( new_cost < _map[ newIndex ].cost)
+            if( new_cost < newCell.cost)
             {
                 float H = _heuristic( newCoordinates, goalPos );
                 _open_set.push( { new_cost + H, newCoordinates } );
-                _map[ newIndex ].cost = new_cost;
-                _map[ newIndex ].path = currentIndex;
+                newCell.cost = new_cost;
+                newCell.path = currentIndex;
             }
         }
     }
@@ -179,8 +180,7 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
             index = _map[index].path;
         }
     }
-
-    if( !solution_found )
+    else
     {
         std::cout << "Solution not found\n" <<
                      " open set size= " << _open_set.size() << std::endl;
