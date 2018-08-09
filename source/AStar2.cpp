@@ -11,7 +11,7 @@
 
 using namespace std::placeholders;
 
-namespace AStar2{
+namespace AStar{
 
 bool Coord2D::operator == (const Coord2D& coordinates)
 {

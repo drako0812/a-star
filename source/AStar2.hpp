@@ -1,10 +1,10 @@
 /*
-    Copyright (c) 2015, Damian Barczynski <daan.net@wp.eu>
+    Copyright (c) 2018, Eurecat
     Following tool is licensed under the terms and conditions of the ISC license.
     For more information visit https://opensource.org/licenses/ISC.
 */
-#ifndef __ASTAR2_HPP_8F637DB91972F6C878D41D63F7E7214F__
-#define __ASTAR2_HPP_8F637DB91972F6C878D41D63F7E7214F__
+#ifndef _ASTAR2_Taffete_eurecat_
+#define _ASTAR2_Taffete_eurecat_
 
 #include <vector>
 #include <functional>
@@ -13,8 +13,9 @@
 #include <unordered_map>
 #include <queue>
 
-namespace AStar2
+namespace AStar
 {
+
 struct Coord2D
 {
     int x, y;
@@ -45,13 +46,13 @@ public:
     Generator();
     ~Generator();
 
-    /// Column wise
+    /// Row-major ordered map, where an obstacle is represented as a pixel with value 0 (black)
     void setWorldData(int width, int height, const uint8_t *data);
 
     /// Default value is Heuristic::manhattan
     void setHeuristic(HeuristicFunction heuristic_);
 
-    /// Funtion that performs the actual A* computation.
+    /// Function that performs the actual A* computation.
     CoordinateList  findPath(Coord2D source_, Coord2D target_);
 
 
@@ -118,4 +119,4 @@ public:
 
 }
 
-#endif // __ASTAR_HPP_8F637DB91972F6C878D41D63F7E7214F__
+#endif
