@@ -29,25 +29,19 @@ Generator::Generator():
 {
     _allow_5x5_search = false;
     setHeuristic(&Heuristic::manhattan);
-    _directions = {
+    _directions = {{
         { -1, -1 },  { 0, -1 }, { 1, -1 },
         { -1,  0 },             { 1,  0 },
         { -1,  1 },  { 0, 1 },  { 1,  1 },
-
-//        { -2, -2 }, { -1, -2 }, { 0, -2 }, { 1, -2 }, { 2, -2 },
-//        { -2, -1 },                                   { 2, -1 },
-//        { -2,  0 },                                   { 2,  0 },
-//        { -2,  1 },                                   { 2,  1 },
-//        { -2,  2 }, { -1,  2 }, { 0,  2 }, { 1,  2 }, { 2,  2 }
 
         { -2, -2 }, { -2, -1 }, { -2, 0 }, { -2, 1 }, { -2, 2 },
         { -1, -2 },                                   { -1, 2 },
         { -0, -2 },                                   {  0, 2 },
         {  1, -2 },                                   {  1, 2 },
         {  2, -2 }, { 2,  -1 }, { 2,  0 }, { 2,  1 }, {  2, 2 }
-    };
+    }};
 
-    _direction_cost = {
+    _direction_cost = {{
         14, 10, 14,
         10,     10,
         14, 10, 14,
@@ -57,7 +51,7 @@ Generator::Generator():
         20,             20,
         22,             22,
         28, 22, 20, 22, 28
-    };
+    }};
 }
 
 Generator::~Generator()
@@ -120,7 +114,7 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
     const int goalIndex = toIndex(goalPos);
 
     _open_set.push( {0, startPos } );
-    _map[ startIndex ].cost = 0.0;
+    _map[startIndex].cost = 0.0;
 
     bool solution_found = false;
 
@@ -134,8 +128,8 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
             break;
         }
         int currentIndex = toIndex(coordinates);
-        _map[ currentIndex ].is_closed = true;
-        float current_G = _map[currentIndex].cost;
+        Cell& current = _map[ currentIndex ];
+        current.is_closed = true;
 
         bool can_do_jump_16 = _allow_5x5_search;
         for (int i=0; i<8 && can_do_jump_16; i++)
@@ -163,12 +157,11 @@ CoordinateList Generator::findPath(Coord2D startPos, Coord2D goalPos)
 
             float pixel_color =  cell( newCoordinates ).world;
             float factor = 1.0f + static_cast<float>(EMPTY - pixel_color) / 50.0f;
-            float new_cost = current_G + _direction_cost[i] * factor;
+            float new_cost = current.cost + _direction_cost[i] * factor;
 
             if( new_cost < _map[ newIndex ].cost)
             {
-                auto H = _heuristic( newCoordinates, goalPos );
-
+                float H = _heuristic( newCoordinates, goalPos );
                 _open_set.push( { new_cost + H, newCoordinates } );
                 _map[ newIndex ].cost = new_cost;
                 _map[ newIndex ].path = currentIndex;
@@ -260,19 +253,19 @@ Coord2D Heuristic::getDelta(Coord2D source, Coord2D target)
     return{ abs(source.x - target.x),  abs(source.y - target.y) };
 }
 
-uint Heuristic::manhattan(Coord2D source, Coord2D target)
+float Heuristic::manhattan(Coord2D source, Coord2D target)
 {
     auto delta = getDelta(source, target);
     return static_cast<uint>(10 * (delta.x + delta.y));
 }
 
-uint Heuristic::euclidean(Coord2D source, Coord2D target)
+float Heuristic::euclidean(Coord2D source, Coord2D target)
 {
     auto delta = getDelta(source, target);
     return static_cast<uint>(10 * sqrt(pow(delta.x, 2) + pow(delta.y, 2)));
 }
 
-uint Heuristic::octagonal(Coord2D source, Coord2D target)
+float Heuristic::octagonal(Coord2D source, Coord2D target)
 {
     auto delta = getDelta(source, target);
     return 10 * (delta.x + delta.y) + (-6) * std::min(delta.x, delta.y);
