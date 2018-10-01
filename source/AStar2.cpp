@@ -7,7 +7,8 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
-#include <string.h>
+#include <cstring>
+#include <cmath>
 
 using namespace std::placeholders;
 
